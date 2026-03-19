@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  TRAINER
+  PLAYER
+  ADMIN
+}
+
+enum GameStatus {
+  LOBBY
+  IN_PROGRESS
+  ROUND_ACTIVE
+  COMPUTING
+  ROUND_DONE
+  FINISHED
+}
+
+enum RoundStatus {
+  PENDING
+  ACTIVE
+  COMPUTING
+  COMPLETED
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  passwordHash String
+  role         UserRole     @default(PLAYER)
+  gamePlayers  GamePlayer[]
+  createdGames Game[]       @relation("trainer")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Game {
+  id              String        @id @default(cuid())
+  name            String
+  code            String        @unique
+  status          GameStatus    @default(LOBBY)
+  currentRound    Int           @default(0)
+  maxRounds       Int           @default(5)
+  trainerId       String
+  trainer         User          @relation("trainer", fields: [trainerId], references: [id])
+  initialConfigId String
+  initialConfig   InitialConfig @relation(fields: [initialConfigId], references: [id])
+  players         GamePlayer[]
+  rounds          Round[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model GamePlayer {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id])
+  gameId       String
+  game         Game            @relation(fields: [gameId], references: [id])
+  pharmacyName String          @default("Ma Pharmacie")
+  states       PharmacyState[]
+  decisions    Decision[]
+  createdAt    DateTime        @default(now())
+
+  @@unique([userId, gameId])
+}
+
+model InitialConfig {
+  id        String   @id @default(cuid())
+  name      String
+  data      Json
+  games     Game[]
+  createdAt DateTime @default(now())
+}
+
+model Round {
+  id        String      @id @default(cuid())
+  gameId    String
+  game      Game        @relation(fields: [gameId], references: [id])
+  number    Int
+  status    RoundStatus @default(PENDING)
+  events    Json?
+  decisions Decision[]
+  states    PharmacyState[]
+  createdAt DateTime    @default(now())
+
+  @@unique([gameId, number])
+}
+
+model Decision {
+  id           String     @id @default(cuid())
+  gamePlayerId String
+  gamePlayer   GamePlayer @relation(fields: [gamePlayerId], references: [id])
+  roundId      String
+  round        Round      @relation(fields: [roundId], references: [id])
+  submitted    Boolean    @default(false)
+  submittedAt  DateTime?
+  hr           Json       @default("{}")
+  purchasing   Json       @default("{}")
+  pricing      Json       @default("{}")
+  marketing    Json       @default("{}")
+  investments  Json       @default("{}")
+  finance      Json       @default("{}")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([gamePlayerId, roundId])
+}
+
+model PharmacyState {
+  id              String      @id @default(cuid())
+  gamePlayerId    String
+  gamePlayer      GamePlayer  @relation(fields: [gamePlayerId], references: [id])
+  roundId         String?
+  round           Round?      @relation(fields: [roundId], references: [id])
+  roundNumber     Int
+  balanceSheet    Json
+  incomeStatement Json
+  cashFlow        Json
+  employees       Json
+  inventory       Json
+  kpis            Json
+  score           Float       @default(0)
+  createdAt       DateTime    @default(now())
+
+  @@unique([gamePlayerId, roundNumber])
+}
