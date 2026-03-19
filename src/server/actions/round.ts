@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { simulateRound } from "@/lib/engine";
+import type { Prisma } from "@prisma/client";
 import type { PlayerDecisions } from "@/types";
 
 export async function startRound(gameId: string) {
@@ -160,12 +161,12 @@ export async function computeRound(gameId: string) {
     if (!previousState) continue;
 
     const playerDecisions: PlayerDecisions = {
-      hr: (decision?.hr ?? {}) as PlayerDecisions["hr"],
-      purchasing: (decision?.purchasing ?? {}) as PlayerDecisions["purchasing"],
-      pricing: (decision?.pricing ?? {}) as PlayerDecisions["pricing"],
-      marketing: (decision?.marketing ?? {}) as PlayerDecisions["marketing"],
-      investments: (decision?.investments ?? {}) as PlayerDecisions["investments"],
-      finance: (decision?.finance ?? {}) as PlayerDecisions["finance"],
+      hr: (decision?.hr ?? {}) as unknown as PlayerDecisions["hr"],
+      purchasing: (decision?.purchasing ?? {}) as unknown as PlayerDecisions["purchasing"],
+      pricing: (decision?.pricing ?? {}) as unknown as PlayerDecisions["pricing"],
+      marketing: (decision?.marketing ?? {}) as unknown as PlayerDecisions["marketing"],
+      investments: (decision?.investments ?? {}) as unknown as PlayerDecisions["investments"],
+      finance: (decision?.finance ?? {}) as unknown as PlayerDecisions["finance"],
     };
 
     const newState = simulateRound(
@@ -176,10 +177,10 @@ export async function computeRound(gameId: string) {
         employees: previousState.employees,
         inventory: previousState.inventory,
         kpis: previousState.kpis,
-      },
+      } as unknown as Parameters<typeof simulateRound>[0],
       playerDecisions,
-      (currentRound.events as Array<{ type: string; title: string; description: string; impact: Record<string, number> }>) ?? [],
-      config as Parameters<typeof simulateRound>[3]
+      (currentRound.events ?? []) as unknown as Parameters<typeof simulateRound>[2],
+      config as unknown as Parameters<typeof simulateRound>[3]
     );
 
     await prisma.pharmacyState.create({
@@ -187,12 +188,12 @@ export async function computeRound(gameId: string) {
         gamePlayerId: player.id,
         roundId: currentRound.id,
         roundNumber: game.currentRound,
-        balanceSheet: newState.balanceSheet,
-        incomeStatement: newState.incomeStatement,
-        cashFlow: newState.cashFlow,
-        employees: newState.employees,
-        inventory: newState.inventory,
-        kpis: newState.kpis,
+        balanceSheet: newState.balanceSheet as unknown as Prisma.InputJsonValue,
+        incomeStatement: newState.incomeStatement as unknown as Prisma.InputJsonValue,
+        cashFlow: newState.cashFlow as unknown as Prisma.InputJsonValue,
+        employees: newState.employees as unknown as Prisma.InputJsonValue,
+        inventory: newState.inventory as unknown as Prisma.InputJsonValue,
+        kpis: newState.kpis as unknown as Prisma.InputJsonValue,
         score: newState.score,
       },
     });

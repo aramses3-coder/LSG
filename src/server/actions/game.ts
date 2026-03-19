@@ -150,6 +150,11 @@ export async function getGameWithPlayers(gameId: string) {
   });
 }
 
+export async function getCurrentUserId() {
+  const session = await auth();
+  return session?.user?.id ?? null;
+}
+
 function getDefaultConfig() {
   return {
     pharmacy: {

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PharmacySummary } from "@/components/game/pharmacy-summary";
 import { DecisionTabs } from "@/components/game/decision-tabs";
-import { getGameWithPlayers } from "@/server/actions/game";
+import { getGameWithPlayers, getCurrentUserId } from "@/server/actions/game";
 import {
   saveDecisions,
   submitDecisions,
@@ -109,18 +109,19 @@ export default function RoundPage() {
       return;
     }
 
-    // Find current player
-    const player = game.players.find((p) =>
-      p.states.length > 0 || p.decisions.length > 0
-    );
+    // Find current player by session
+    const currentUserId = await getCurrentUserId();
+    const player = currentUserId
+      ? game.players.find((p) => p.userId === currentUserId)
+      : game.players[0];
     if (!player) return;
 
     // Load previous state
     const prevState = await getPlayerState(player.id, roundNumber - 1);
     if (prevState) {
-      setEmployees(prevState.employees as Employee[]);
-      setBalanceSheet(prevState.balanceSheet as BalanceSheet);
-      setKpis(prevState.kpis as GameKPIs);
+      setEmployees(prevState.employees as unknown as Employee[]);
+      setBalanceSheet(prevState.balanceSheet as unknown as BalanceSheet);
+      setKpis(prevState.kpis as unknown as GameKPIs);
     }
 
     // Load current round
@@ -133,12 +134,12 @@ export default function RoundPage() {
         if (decision.submitted) return;
 
         setDecisions({
-          hr: (decision.hr as HRDecisions) ?? DEFAULT_DECISIONS.hr,
-          purchasing: (decision.purchasing as PurchasingDecisions) ?? DEFAULT_DECISIONS.purchasing,
-          pricing: (decision.pricing as PricingDecisions) ?? DEFAULT_DECISIONS.pricing,
-          marketing: (decision.marketing as MarketingDecisions) ?? DEFAULT_DECISIONS.marketing,
-          investments: (decision.investments as InvestmentDecisions) ?? DEFAULT_DECISIONS.investments,
-          finance: (decision.finance as FinanceDecisions) ?? DEFAULT_DECISIONS.finance,
+          hr: (decision.hr as unknown as HRDecisions) ?? DEFAULT_DECISIONS.hr,
+          purchasing: (decision.purchasing as unknown as PurchasingDecisions) ?? DEFAULT_DECISIONS.purchasing,
+          pricing: (decision.pricing as unknown as PricingDecisions) ?? DEFAULT_DECISIONS.pricing,
+          marketing: (decision.marketing as unknown as MarketingDecisions) ?? DEFAULT_DECISIONS.marketing,
+          investments: (decision.investments as unknown as InvestmentDecisions) ?? DEFAULT_DECISIONS.investments,
+          finance: (decision.finance as unknown as FinanceDecisions) ?? DEFAULT_DECISIONS.finance,
         });
       }
     }
@@ -187,7 +188,10 @@ export default function RoundPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-gray-500">Chargement...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-gray-500 text-sm">Chargement du round...</p>
+        </div>
       </div>
     );
   }
@@ -204,14 +208,24 @@ export default function RoundPage() {
         </div>
         <div className="flex items-center gap-3">
           {saving && (
-            <span className="text-xs text-gray-400">Sauvegarde...</span>
+            <span className="text-xs text-gray-400 flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+              Sauvegarde...
+            </span>
+          )}
+          {!saving && !submitted && decisionId && (
+            <span className="text-xs text-emerald-500 flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-emerald-400 rounded-full" />
+              Sauvegarde auto
+            </span>
           )}
           {submitted ? (
-            <div className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg text-sm font-medium">
-              Decisions soumises - En attente des resultats
+            <div className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+              <span>&#x2713;</span>
+              Soumises &mdash; En attente des resultats
             </div>
           ) : (
-            <Button onClick={handleSubmit} disabled={!decisionId}>
+            <Button onClick={handleSubmit} disabled={!decisionId} size="lg">
               Soumettre mes decisions
             </Button>
           )}
